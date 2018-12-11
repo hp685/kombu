@@ -138,7 +138,7 @@ class Resource(object):
     def collect_resource(self, resource):
         pass
 
-    def force_close_all(self):
+    def force_close_all(self, close_pool=True):
         """Close and remove all resources in the pool (also those in use).
 
         Used to close resources from parent processes after fork
@@ -146,7 +146,8 @@ class Resource(object):
         """
         if self._closed:
             return
-        self._closed = True
+        if close_pool:
+            self._closed = True
         dirty = self._dirty
         resource = self._resource
         while 1:  # - acquired
@@ -175,8 +176,7 @@ class Resource(object):
         prev_limit = self._limit
         if (self._dirty and limit < self._limit) and not ignore_errors:
             # for backwards compat
-            if force:
-                self.forced_resize = force
+            self.forced_resize = force or self.forced_resize
             if not self.forced_resize:
                 raise RuntimeError(
                     "Can't shrink pool when in use: was={0} now={1}".format(
@@ -185,7 +185,7 @@ class Resource(object):
         self._limit = limit
         if reset:
             try:
-                self.force_close_all()
+                self.force_close_all(close_pool=False)
             except Exception:
                 pass
         self.setup()
